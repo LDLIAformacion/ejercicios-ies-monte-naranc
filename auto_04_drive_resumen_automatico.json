@@ -1,0 +1,272 @@
+{
+  "name": "Auto 04 - Nuevo Archivo en Drive → Resumen IA",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📁 AUTOMATIZACIÓN 4: Resumen Automático de Documentos en Drive\n\n### 🎯 OBJETIVO:\nCuando se sube un documento a una carpeta específica de Drive, la IA genera automáticamente un resumen y lo registra.\n\n### 📋 FLUJO:\n1. Drive Trigger detecta archivo nuevo en carpeta vigilada\n2. Descargar el contenido del archivo\n3. La IA analiza y genera resumen + palabras clave\n4. Guardar el resumen en Google Sheets\n5. (Opcional) Añadir el resumen como descripción del archivo\n\n### ⚙️ CONFIGURACIÓN NECESARIA:\n1. **Google Drive**: \n   - Crear/elegir carpeta a vigilar\n   - Copiar el ID de la carpeta\n2. **Google Sheets**: Hoja para registro de resúmenes\n3. **OpenAI**: Credenciales configuradas\n\n### 📄 TIPOS SOPORTADOS:\n- Google Docs: Lectura directa\n- PDF: Extracción de texto\n- TXT: Lectura directa\n\n### 💡 CASOS DE USO:\n- Carpeta de \"Normativa\" → Resumen automático de nuevas leyes\n- Carpeta de \"Actas\" → Índice automático de reuniones\n- Carpeta de \"Proyectos\" → Resumen de documentación\n\n### ⚠️ NOTA:\nPara PDFs complejos puede necesitarse un nodo adicional de extracción de texto.",
+        "height": 620,
+        "width": 480
+      },
+      "id": "auto4-note-001",
+      "name": "Instrucciones",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [40, 20]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "mode": "id",
+          "value": "=TU_ID_CARPETA_DRIVE"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "id": "auto4-drive-trigger-001",
+      "name": "Drive - Nuevo Archivo",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [340, 300]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-id",
+              "name": "archivo_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "field-nombre",
+              "name": "nombre_archivo",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "field-tipo",
+              "name": "tipo_mime",
+              "value": "={{ $json.mimeType }}",
+              "type": "string"
+            },
+            {
+              "id": "field-fecha",
+              "name": "fecha_creacion",
+              "value": "={{ $json.createdTime }}",
+              "type": "string"
+            },
+            {
+              "id": "field-propietario",
+              "name": "propietario",
+              "value": "={{ $json.owners ? $json.owners[0].emailAddress : 'Desconocido' }}",
+              "type": "string"
+            },
+            {
+              "id": "field-link",
+              "name": "link_archivo",
+              "value": "={{ $json.webViewLink }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "auto4-set-info-001",
+      "name": "Info del Archivo",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [560, 300]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.archivo_id }}"
+        },
+        "options": {}
+      },
+      "id": "auto4-drive-download-001",
+      "name": "Drive - Descargar",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "id": "auto4-extract-001",
+      "name": "Extraer Texto",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analiza el siguiente documento y proporciona:\n\n1. RESUMEN: Un resumen ejecutivo de 2-3 frases (máximo 100 palabras)\n2. PALABRAS_CLAVE: 5 palabras clave separadas por comas\n3. TIPO_DOCUMENTO: Clasifica en: Normativa, Acta, Informe, Proyecto, Formulario, Comunicación, Otro\n\n---\nDOCUMENTO: {{ $('Info del Archivo').item.json.nombre_archivo }}\nCONTENIDO:\n{{ $json.data.substring(0, 4000) }}\n---\n\nResponde SOLO en formato JSON:\n{\n  \"resumen\": \"...\",\n  \"palabras_clave\": \"...\",\n  \"tipo_documento\": \"...\"\n}",
+        "options": {
+          "systemMessage": "Eres un asistente documental de un centro educativo. Tu trabajo es analizar documentos y generar resúmenes precisos y útiles. Identifica la información más relevante para el personal del centro. Responde ÚNICAMENTE con el JSON solicitado."
+        }
+      },
+      "id": "auto4-agent-001",
+      "name": "IA - Analizar Documento",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [1220, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "auto4-openai-001",
+      "name": "OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [1220, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parsear respuesta de la IA\nconst items = $input.all();\nconst infoArchivo = $('Info del Archivo').first().json;\n\nconst results = [];\n\nfor (const item of items) {\n  let iaResponse = {};\n  \n  try {\n    const outputText = item.json.output || '{}';\n    const cleanJson = outputText.replace(/```json\\n?|```\\n?/g, '').trim();\n    iaResponse = JSON.parse(cleanJson);\n  } catch (e) {\n    iaResponse = {\n      resumen: 'Error al procesar documento',\n      palabras_clave: 'error',\n      tipo_documento: 'Otro'\n    };\n  }\n  \n  results.push({\n    json: {\n      archivo_id: infoArchivo.archivo_id,\n      nombre_archivo: infoArchivo.nombre_archivo,\n      tipo_mime: infoArchivo.tipo_mime,\n      fecha_creacion: infoArchivo.fecha_creacion,\n      propietario: infoArchivo.propietario,\n      link_archivo: infoArchivo.link_archivo,\n      resumen_ia: iaResponse.resumen,\n      palabras_clave: iaResponse.palabras_clave,\n      tipo_documento: iaResponse.tipo_documento,\n      fecha_procesado: new Date().toISOString()\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "auto4-code-001",
+      "name": "Procesar Respuesta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "=TU_ID_GOOGLE_SHEET"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Documentos"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Fecha_Subida": "={{ $json.fecha_creacion }}",
+            "Nombre_Archivo": "={{ $json.nombre_archivo }}",
+            "Tipo_Archivo": "={{ $json.tipo_mime }}",
+            "Propietario": "={{ $json.propietario }}",
+            "Link": "={{ $json.link_archivo }}",
+            "Resumen_IA": "={{ $json.resumen_ia }}",
+            "Palabras_Clave": "={{ $json.palabras_clave }}",
+            "Tipo_Documento": "={{ $json.tipo_documento }}",
+            "Origen": "Drive"
+          }
+        },
+        "options": {}
+      },
+      "id": "auto4-sheets-001",
+      "name": "Sheets - Registrar",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1660, 300]
+    }
+  ],
+  "connections": {
+    "Drive - Nuevo Archivo": {
+      "main": [
+        [
+          {
+            "node": "Info del Archivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Info del Archivo": {
+      "main": [
+        [
+          {
+            "node": "Drive - Descargar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive - Descargar": {
+      "main": [
+        [
+          {
+            "node": "Extraer Texto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Texto": {
+      "main": [
+        [
+          {
+            "node": "IA - Analizar Documento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA - Analizar Documento": {
+      "main": [
+        [
+          {
+            "node": "Procesar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar Respuesta": {
+      "main": [
+        [
+          {
+            "node": "Sheets - Registrar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "IA - Analizar Documento",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}

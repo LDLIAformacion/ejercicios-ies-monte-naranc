@@ -1,0 +1,311 @@
+{
+  "name": "Auto 05 - Base de Datos Inteligente de Emails",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🗄️ AUTOMATIZACIÓN 5: Base de Datos Inteligente de Emails\n\n### 🎯 OBJETIVO:\nCrear una base de datos completa y clasificada de TODOS los emails recibidos, con análisis inteligente.\n\n### 📋 FLUJO COMPLETO:\n1. Gmail Trigger → Nuevo email\n2. Extraer todos los datos del email\n3. IA clasifica: Categoría, Prioridad, Sentimiento, Acción requerida\n4. Detectar si tiene adjuntos\n5. Si tiene adjuntos → Guardar en Drive\n6. Insertar registro completo en Sheets\n7. Si es URGENTE → Enviar notificación\n\n### ⚙️ CONFIGURACIÓN:\n1. **Gmail**: Cuenta conectada\n2. **Google Sheets**: Crear hoja con columnas:\n   - ID, Fecha, Remitente, Asunto, Resumen\n   - Categoría, Prioridad, Sentimiento\n   - Acción_Requerida, Tiene_Adjunto, Estado\n3. **Google Drive**: Carpeta para adjuntos\n4. **OpenAI**: Credenciales\n\n### 🏷️ CLASIFICACIÓN IA:\n- **Categorías**: Administración, Familias, Profesorado, Alumnado, Consejería, Proveedores, Otros\n- **Prioridades**: Urgente, Alta, Media, Baja\n- **Sentimiento**: Positivo, Neutral, Negativo, Queja\n- **Acciones**: Responder, Archivar, Derivar, Reunión, Ninguna\n\n### 💡 BENEFICIOS:\n- Visión completa del buzón\n- Filtrar por prioridad/categoría\n- Métricas de comunicación\n- Detectar patrones (muchas quejas, etc.)",
+        "height": 720,
+        "width": 500
+      },
+      "id": "auto5-note-001",
+      "name": "Instrucciones",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [20, 0]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "readStatus": "unread"
+        }
+      },
+      "id": "auto5-gmail-trigger-001",
+      "name": "Gmail - Nuevo Email",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [300, 340]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-id",
+              "name": "email_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "field-thread",
+              "name": "thread_id",
+              "value": "={{ $json.threadId }}",
+              "type": "string"
+            },
+            {
+              "id": "field-fecha",
+              "name": "fecha",
+              "value": "={{ $json.date }}",
+              "type": "string"
+            },
+            {
+              "id": "field-remitente-email",
+              "name": "remitente_email",
+              "value": "={{ $json.from.value[0].address }}",
+              "type": "string"
+            },
+            {
+              "id": "field-remitente-nombre",
+              "name": "remitente_nombre",
+              "value": "={{ $json.from.value[0].name || $json.from.value[0].address }}",
+              "type": "string"
+            },
+            {
+              "id": "field-asunto",
+              "name": "asunto",
+              "value": "={{ $json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "field-cuerpo",
+              "name": "cuerpo",
+              "value": "={{ ($json.text || $json.snippet || '').substring(0, 2000) }}",
+              "type": "string"
+            },
+            {
+              "id": "field-tiene-adjunto",
+              "name": "tiene_adjunto",
+              "value": "={{ $json.attachments && $json.attachments.length > 0 }}",
+              "type": "boolean"
+            },
+            {
+              "id": "field-num-adjuntos",
+              "name": "num_adjuntos",
+              "value": "={{ $json.attachments ? $json.attachments.length : 0 }}",
+              "type": "number"
+            },
+            {
+              "id": "field-labels",
+              "name": "etiquetas_gmail",
+              "value": "={{ $json.labelIds ? $json.labelIds.join(', ') : '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "auto5-set-extraer-001",
+      "name": "Extraer Datos Completos",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [520, 340]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analiza este email de un centro educativo y clasifícalo:\n\n---\nDE: {{ $json.remitente_nombre }} ({{ $json.remitente_email }})\nASUNTO: {{ $json.asunto }}\nCONTENIDO: {{ $json.cuerpo }}\nTIENE ADJUNTOS: {{ $json.tiene_adjunto ? 'Sí' : 'No' }}\n---\n\nProporciona:\n1. RESUMEN: Resumen en 1-2 frases (máx 50 palabras)\n2. CATEGORIA: Una de [Administración, Familias, Profesorado, Alumnado, Consejería, Proveedores, Formación, Otros]\n3. PRIORIDAD: Una de [Urgente, Alta, Media, Baja]\n4. SENTIMIENTO: Uno de [Positivo, Neutral, Negativo, Queja]\n5. ACCION: Una de [Responder, Archivar, Derivar_Direccion, Derivar_Secretaria, Reunión, Ninguna]\n6. REQUIERE_RESPUESTA: true o false\n\nResponde SOLO en JSON:\n{\n  \"resumen\": \"...\",\n  \"categoria\": \"...\",\n  \"prioridad\": \"...\",\n  \"sentimiento\": \"...\",\n  \"accion\": \"...\",\n  \"requiere_respuesta\": true/false\n}",
+        "options": {
+          "systemMessage": "Eres el sistema de gestión documental de un instituto de educación secundaria. Analizas emails para clasificarlos y priorizarlos. Sé preciso y consistente en las clasificaciones. Si el asunto contiene URGENTE o palabras similares, marca como prioridad Urgente. Si es de Consejería de Educación, categoriza como Consejería y prioridad Alta. Responde SOLO con JSON válido."
+        }
+      },
+      "id": "auto5-agent-001",
+      "name": "IA - Clasificar Email",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [760, 340]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "auto5-openai-001",
+      "name": "OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [760, 540]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Procesar respuesta de IA y combinar con datos originales\nconst items = $input.all();\nconst datosEmail = $('Extraer Datos Completos').first().json;\n\nconst results = [];\n\nfor (const item of items) {\n  let ia = {};\n  \n  try {\n    const output = item.json.output || '{}';\n    const clean = output.replace(/```json\\n?|```\\n?/g, '').trim();\n    ia = JSON.parse(clean);\n  } catch (e) {\n    ia = {\n      resumen: 'Error de clasificación - revisar manualmente',\n      categoria: 'Otros',\n      prioridad: 'Media',\n      sentimiento: 'Neutral',\n      accion: 'Revisar',\n      requiere_respuesta: true\n    };\n  }\n  \n  // Determinar estado inicial\n  let estado = 'Pendiente';\n  if (ia.prioridad === 'Urgente') estado = '🔴 URGENTE';\n  else if (ia.prioridad === 'Alta') estado = '🟠 Prioritario';\n  \n  results.push({\n    json: {\n      // Datos del email\n      email_id: datosEmail.email_id,\n      fecha: datosEmail.fecha,\n      remitente_email: datosEmail.remitente_email,\n      remitente_nombre: datosEmail.remitente_nombre,\n      asunto: datosEmail.asunto,\n      tiene_adjunto: datosEmail.tiene_adjunto ? 'Sí' : 'No',\n      num_adjuntos: datosEmail.num_adjuntos,\n      \n      // Clasificación IA\n      resumen_ia: ia.resumen,\n      categoria: ia.categoria,\n      prioridad: ia.prioridad,\n      sentimiento: ia.sentimiento,\n      accion_sugerida: ia.accion,\n      requiere_respuesta: ia.requiere_respuesta ? 'Sí' : 'No',\n      \n      // Metadatos\n      estado: estado,\n      fecha_procesado: new Date().toISOString(),\n      procesado_por: 'N8N-IA'\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "auto5-code-001",
+      "name": "Combinar Datos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 340]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "=TU_ID_GOOGLE_SHEET"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Emails"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID_Email": "={{ $json.email_id }}",
+            "Fecha": "={{ $json.fecha }}",
+            "Remitente": "={{ $json.remitente_nombre }}",
+            "Email_Remitente": "={{ $json.remitente_email }}",
+            "Asunto": "={{ $json.asunto }}",
+            "Resumen": "={{ $json.resumen_ia }}",
+            "Categoria": "={{ $json.categoria }}",
+            "Prioridad": "={{ $json.prioridad }}",
+            "Sentimiento": "={{ $json.sentimiento }}",
+            "Accion_Sugerida": "={{ $json.accion_sugerida }}",
+            "Requiere_Respuesta": "={{ $json.requiere_respuesta }}",
+            "Tiene_Adjunto": "={{ $json.tiene_adjunto }}",
+            "Num_Adjuntos": "={{ $json.num_adjuntos }}",
+            "Estado": "={{ $json.estado }}",
+            "Fecha_Procesado": "={{ $json.fecha_procesado }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "auto5-sheets-001",
+      "name": "Sheets - Insertar",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1240, 340]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.prioridad }}",
+              "rightValue": "Urgente",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "auto5-if-urgente-001",
+      "name": "¿Es Urgente?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.1,
+      "position": [1460, 340]
+    },
+    {
+      "parameters": {
+        "sendTo": "=tu_email@instituto.es",
+        "subject": "=🔴 EMAIL URGENTE: {{ $json.asunto }}",
+        "message": "=Se ha recibido un email marcado como URGENTE:\n\n📧 De: {{ $json.remitente_nombre }} ({{ $json.remitente_email }})\n📋 Asunto: {{ $json.asunto }}\n\n📝 Resumen:\n{{ $json.resumen_ia }}\n\n🏷️ Categoría: {{ $json.categoria }}\n⚡ Acción sugerida: {{ $json.accion_sugerida }}\n\n---\nEste mensaje ha sido procesado automáticamente por el sistema de gestión de emails.",
+        "options": {}
+      },
+      "id": "auto5-gmail-notify-001",
+      "name": "Gmail - Notificar Urgente",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1680, 240]
+    }
+  ],
+  "connections": {
+    "Gmail - Nuevo Email": {
+      "main": [
+        [
+          {
+            "node": "Extraer Datos Completos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Datos Completos": {
+      "main": [
+        [
+          {
+            "node": "IA - Clasificar Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA - Clasificar Email": {
+      "main": [
+        [
+          {
+            "node": "Combinar Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combinar Datos": {
+      "main": [
+        [
+          {
+            "node": "Sheets - Insertar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets - Insertar": {
+      "main": [
+        [
+          {
+            "node": "¿Es Urgente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es Urgente?": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Notificar Urgente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "IA - Clasificar Email",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}

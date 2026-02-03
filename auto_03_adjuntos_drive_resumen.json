@@ -1,0 +1,311 @@
+{
+  "name": "Auto 03 - Adjuntos Email → Drive + Resumen IA",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📎 AUTOMATIZACIÓN 3: Procesar Adjuntos de Email\n\n### 🎯 OBJETIVO:\nCuando llega un email con adjuntos:\n1. Guardar el adjunto en Google Drive\n2. Si es PDF/DOC, la IA genera un resumen\n3. Registrar todo en Google Sheets\n\n### 📋 FLUJO:\n1. Gmail Trigger detecta email con adjunto\n2. Filtrar solo emails con adjuntos\n3. Descargar el adjunto\n4. Subir a carpeta específica en Drive\n5. Si es documento de texto, IA resume el contenido\n6. Registrar en Sheets: archivo, ubicación, resumen\n\n### ⚙️ CONFIGURACIÓN NECESARIA:\n1. **Gmail**: Conectar cuenta de Google\n2. **Google Drive**: \n   - Crear carpeta \"Adjuntos_Emails\"\n   - Copiar el ID de la carpeta\n3. **Google Sheets**: Hoja para registro de documentos\n4. **OpenAI**: Credenciales configuradas\n\n### 📁 TIPOS DE ARCHIVO SOPORTADOS:\n- PDF: Se extrae texto y resume\n- DOCX/DOC: Se extrae texto y resume\n- Imágenes: Se guardan sin resumen\n- Excel: Se guarda sin resumen\n\n### 💡 CASOS DE USO:\n- Archivar justificantes de familias\n- Documentación de Consejería\n- Actas y documentos de reuniones",
+        "height": 640,
+        "width": 480
+      },
+      "id": "auto3-note-001",
+      "name": "Instrucciones",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [40, 0]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "readStatus": "unread"
+        }
+      },
+      "id": "auto3-gmail-trigger-001",
+      "name": "Gmail - Nuevo Email",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [300, 340]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.attachments }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "auto3-if-adjuntos-001",
+      "name": "¿Tiene Adjuntos?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.1,
+      "position": [520, 340]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-email-id",
+              "name": "email_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "field-fecha",
+              "name": "fecha_email",
+              "value": "={{ $json.date }}",
+              "type": "string"
+            },
+            {
+              "id": "field-remitente",
+              "name": "remitente",
+              "value": "={{ $json.from.value[0].address }}",
+              "type": "string"
+            },
+            {
+              "id": "field-asunto",
+              "name": "asunto",
+              "value": "={{ $json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "field-adjuntos",
+              "name": "adjuntos",
+              "value": "={{ $json.attachments }}",
+              "type": "object"
+            },
+            {
+              "id": "field-num-adjuntos",
+              "name": "num_adjuntos",
+              "value": "={{ $json.attachments.length }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "auto3-set-extraer-001",
+      "name": "Extraer Datos",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [740, 240]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "adjuntos",
+        "options": {}
+      },
+      "id": "auto3-splitout-001",
+      "name": "Separar Adjuntos",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [960, 240]
+    },
+    {
+      "parameters": {
+        "operation": "getAttachment",
+        "messageId": "={{ $json.email_id }}",
+        "attachmentId": "={{ $json.adjuntos.id }}",
+        "options": {}
+      },
+      "id": "auto3-gmail-attachment-001",
+      "name": "Gmail - Descargar Adjunto",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1180, 240]
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "folderId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "=TU_ID_CARPETA_DRIVE"
+        },
+        "name": "={{ $('Separar Adjuntos').item.json.adjuntos.filename }}",
+        "options": {}
+      },
+      "id": "auto3-drive-upload-001",
+      "name": "Drive - Subir Archivo",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1400, 240]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-nombre-archivo",
+              "name": "nombre_archivo",
+              "value": "={{ $('Separar Adjuntos').item.json.adjuntos.filename }}",
+              "type": "string"
+            },
+            {
+              "id": "field-tipo",
+              "name": "tipo_archivo",
+              "value": "={{ $('Separar Adjuntos').item.json.adjuntos.mimeType }}",
+              "type": "string"
+            },
+            {
+              "id": "field-drive-id",
+              "name": "drive_file_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "field-drive-link",
+              "name": "drive_link",
+              "value": "={{ $json.webViewLink }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "auto3-set-info-001",
+      "name": "Info del Archivo",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1620, 240]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "=TU_ID_GOOGLE_SHEET"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Documentos"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Fecha": "={{ $json.fecha_email }}",
+            "Remitente": "={{ $json.remitente }}",
+            "Asunto_Email": "={{ $json.asunto }}",
+            "Nombre_Archivo": "={{ $json.nombre_archivo }}",
+            "Tipo": "={{ $json.tipo_archivo }}",
+            "Link_Drive": "={{ $json.drive_link }}",
+            "Origen": "Email"
+          }
+        },
+        "options": {}
+      },
+      "id": "auto3-sheets-001",
+      "name": "Sheets - Registrar",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1840, 240]
+    }
+  ],
+  "connections": {
+    "Gmail - Nuevo Email": {
+      "main": [
+        [
+          {
+            "node": "¿Tiene Adjuntos?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Tiene Adjuntos?": {
+      "main": [
+        [
+          {
+            "node": "Extraer Datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Datos": {
+      "main": [
+        [
+          {
+            "node": "Separar Adjuntos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Separar Adjuntos": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Descargar Adjunto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail - Descargar Adjunto": {
+      "main": [
+        [
+          {
+            "node": "Drive - Subir Archivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive - Subir Archivo": {
+      "main": [
+        [
+          {
+            "node": "Info del Archivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Info del Archivo": {
+      "main": [
+        [
+          {
+            "node": "Sheets - Registrar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}

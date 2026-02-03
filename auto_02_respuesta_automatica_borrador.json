@@ -1,0 +1,218 @@
+{
+  "name": "Auto 02 - Respuesta Automática Inteligente (Borrador)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📧 AUTOMATIZACIÓN 2: Respuesta Automática con IA\n\n### 🎯 OBJETIVO:\nCuando llega un email, la IA redacta una respuesta profesional y la guarda como BORRADOR en Gmail (no se envía automáticamente).\n\n### 📋 FLUJO:\n1. Gmail Trigger detecta nuevo email\n2. Se extraen los datos del email\n3. La IA analiza el contenido y redacta una respuesta apropiada\n4. Se crea un BORRADOR en Gmail con la respuesta\n5. El usuario revisa y envía manualmente\n\n### ⚙️ CONFIGURACIÓN NECESARIA:\n1. **Gmail**: Conectar cuenta de Google con permisos de escritura\n2. **OpenAI**: Credenciales configuradas\n\n### 🔒 SEGURIDAD:\n- La respuesta se guarda como BORRADOR, NO se envía automáticamente\n- El usuario siempre revisa antes de enviar\n- Se puede editar la respuesta antes de enviar\n\n### 💡 CASOS DE USO:\n- Respuestas a familias (justificantes, consultas)\n- Confirmación de recepción de documentos\n- Respuestas estándar a consultas frecuentes",
+        "height": 560,
+        "width": 480
+      },
+      "id": "auto2-note-001",
+      "name": "Instrucciones",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [40, 20]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "readStatus": "unread"
+        }
+      },
+      "id": "auto2-gmail-trigger-001",
+      "name": "Gmail - Nuevo Email",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [340, 300]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-id",
+              "name": "email_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "field-thread",
+              "name": "thread_id",
+              "value": "={{ $json.threadId }}",
+              "type": "string"
+            },
+            {
+              "id": "field-remitente",
+              "name": "remitente_email",
+              "value": "={{ $json.from.value[0].address }}",
+              "type": "string"
+            },
+            {
+              "id": "field-nombre",
+              "name": "remitente_nombre",
+              "value": "={{ $json.from.value[0].name || $json.from.value[0].address.split('@')[0] }}",
+              "type": "string"
+            },
+            {
+              "id": "field-asunto",
+              "name": "asunto_original",
+              "value": "={{ $json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "field-cuerpo",
+              "name": "cuerpo_email",
+              "value": "={{ $json.text || $json.snippet }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "auto2-set-extraer-001",
+      "name": "Extraer Datos Email",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [560, 300]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Redacta una respuesta profesional para este email recibido en un instituto de educación secundaria.\n\n---\nEMAIL RECIBIDO:\nDe: {{ $json.remitente_nombre }}\nAsunto: {{ $json.asunto_original }}\nContenido: {{ $json.cuerpo_email }}\n---\n\nINSTRUCCIONES:\n1. Saludo apropiado usando el nombre del remitente\n2. Confirma la recepción del mensaje\n3. Responde de forma útil y profesional al contenido\n4. Si es una solicitud, indica los próximos pasos o plazos\n5. Despedida cordial\n6. Firma como \"Secretaría del Centro\"\n\nLa respuesta debe ser concisa (máximo 150 palabras) y en español formal pero cercano.",
+        "options": {
+          "systemMessage": "Eres el asistente de secretaría de un instituto de educación secundaria público. Redactas respuestas profesionales, cordiales y eficientes a los emails recibidos. Siempre mantienes un tono formal pero cercano, apropiado para comunicaciones con familias, profesorado y administración educativa."
+        }
+      },
+      "id": "auto2-agent-001",
+      "name": "IA - Redactar Respuesta",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "id": "auto2-openai-001",
+      "name": "OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [780, 500]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-asunto-resp",
+              "name": "asunto_respuesta",
+              "value": "=Re: {{ $json.asunto_original }}",
+              "type": "string"
+            },
+            {
+              "id": "field-cuerpo-resp",
+              "name": "cuerpo_respuesta",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "auto2-set-preparar-001",
+      "name": "Preparar Respuesta",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "operation": "createDraft",
+        "to": "={{ $json.remitente_email }}",
+        "subject": "={{ $json.asunto_respuesta }}",
+        "message": "={{ $json.cuerpo_respuesta }}",
+        "options": {
+          "threadId": "={{ $json.thread_id }}"
+        }
+      },
+      "id": "auto2-gmail-draft-001",
+      "name": "Gmail - Crear Borrador",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1220, 300]
+    }
+  ],
+  "connections": {
+    "Gmail - Nuevo Email": {
+      "main": [
+        [
+          {
+            "node": "Extraer Datos Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Datos Email": {
+      "main": [
+        [
+          {
+            "node": "IA - Redactar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA - Redactar Respuesta": {
+      "main": [
+        [
+          {
+            "node": "Preparar Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar Respuesta": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Crear Borrador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "IA - Redactar Respuesta",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}

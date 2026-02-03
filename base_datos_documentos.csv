@@ -1,0 +1,4 @@
+ID,Fecha_Subida,Nombre_Archivo,Tipo_Archivo,Ubicacion_Drive,Resumen_IA,Palabras_Clave,Subido_Por,Origen
+1,2024-02-01 09:00,Programacion_Didactica_2024.pdf,PDF,/Documentos/Departamento,Programación didáctica del curso 2024-25 que incluye objetivos competencias y criterios de evaluación,"programación, didáctica, evaluación",profesor@instituto.es,Email
+2,2024-02-01 10:30,Acta_Reunion_Enero.docx,Word,/Documentos/Actas,Acta de la reunión del departamento de enero donde se trataron temas de coordinación y fechas de exámenes,"acta, reunión, exámenes",jefe.dpto@instituto.es,Drive
+3,2024-02-01 14:00,Listado_Alumnos_1ESO.xlsx,Excel,/Documentos/Listas,Listado completo de alumnos de 1º ESO con datos de contacto y observaciones,"alumnos, listado, 1ESO",tutor@instituto.es,Email

@@ -1,0 +1,4 @@
+ID,Fecha_Recepcion,Remitente,Asunto,Resumen_IA,Categoria,Prioridad,Estado,Tiene_Adjunto,Ruta_Adjunto
+1,2024-02-01 09:30,director@instituto.es,Reunión departamento,Convocatoria de reunión para el viernes a las 10:00 sobre programación didáctica,Reuniones,Media,Pendiente,No,
+2,2024-02-01 10:15,padre.alumno@gmail.com,Justificante ausencia,Solicitud de justificación de ausencia del alumno Juan García del día 30/01,Familias,Baja,Pendiente,Sí,/Adjuntos/justificante_001.pdf
+3,2024-02-01 11:00,consejeria@edu.es,URGENTE: Plazo documentación,Recordatorio de entrega de documentación antes del 5 de febrero,Administración,Alta,Pendiente,Sí,/Adjuntos/instrucciones.pdf

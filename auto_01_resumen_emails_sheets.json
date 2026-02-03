@@ -1,0 +1,224 @@
+{
+  "name": "Auto 01 - Resumen de Emails con IA → Google Sheets",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 📧 AUTOMATIZACIÓN 1: Resumen de Emails con IA\n\n### 🎯 OBJETIVO:\nCada vez que llega un email nuevo, la IA genera un resumen y lo guarda en Google Sheets.\n\n### 📋 FLUJO:\n1. Gmail Trigger detecta nuevo email\n2. Se extraen los datos del email\n3. La IA genera un resumen conciso\n4. La IA clasifica por categoría y prioridad\n5. Se inserta una fila en Google Sheets\n\n### ⚙️ CONFIGURACIÓN NECESARIA:\n1. **Gmail**: Conectar cuenta de Google\n2. **Google Sheets**: \n   - Crear hoja con columnas: ID, Fecha, Remitente, Asunto, Resumen_IA, Categoria, Prioridad, Estado\n   - Copiar el ID de la hoja\n3. **OpenAI**: Credenciales configuradas\n\n### 📊 RESULTADO:\nBase de datos automática de todos los emails con resúmenes inteligentes.\n\n### 💡 CASOS DE USO:\n- Secretaría del centro: registro automático de comunicaciones\n- Jefatura: visión rápida de emails pendientes\n- Departamentos: seguimiento de consultas",
+        "height": 580,
+        "width": 480
+      },
+      "id": "auto1-note-001",
+      "name": "Instrucciones",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [40, 20]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "readStatus": "unread"
+        }
+      },
+      "id": "auto1-gmail-trigger-001",
+      "name": "Gmail - Nuevo Email",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [340, 300]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-id",
+              "name": "email_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "field-fecha",
+              "name": "fecha_recepcion",
+              "value": "={{ $json.date }}",
+              "type": "string"
+            },
+            {
+              "id": "field-remitente",
+              "name": "remitente",
+              "value": "={{ $json.from.value[0].address }}",
+              "type": "string"
+            },
+            {
+              "id": "field-nombre-remitente",
+              "name": "nombre_remitente",
+              "value": "={{ $json.from.value[0].name || $json.from.value[0].address }}",
+              "type": "string"
+            },
+            {
+              "id": "field-asunto",
+              "name": "asunto",
+              "value": "={{ $json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "field-cuerpo",
+              "name": "cuerpo_email",
+              "value": "={{ $json.text || $json.snippet }}",
+              "type": "string"
+            },
+            {
+              "id": "field-tiene-adjunto",
+              "name": "tiene_adjunto",
+              "value": "={{ $json.attachments && $json.attachments.length > 0 ? 'Sí' : 'No' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "auto1-set-extraer-001",
+      "name": "Extraer Datos Email",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [560, 300]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analiza este email y proporciona:\n\n1. RESUMEN: Un resumen conciso de 1-2 frases (máximo 50 palabras)\n2. CATEGORÍA: Clasifica en UNA de estas: Administración, Familias, Profesorado, Alumnado, Reuniones, Formación, Urgente, Otros\n3. PRIORIDAD: Alta, Media o Baja\n\n---\nEMAIL:\nDe: {{ $json.nombre_remitente }} ({{ $json.remitente }})\nAsunto: {{ $json.asunto }}\nContenido: {{ $json.cuerpo_email }}\n---\n\nResponde SOLO en este formato JSON exacto:\n{\n  \"resumen\": \"...\",\n  \"categoria\": \"...\",\n  \"prioridad\": \"...\"\n}",
+        "options": {
+          "systemMessage": "Eres un asistente administrativo de un instituto de educación secundaria. Tu trabajo es clasificar y resumir emails de forma precisa y profesional. Responde ÚNICAMENTE con el JSON solicitado, sin explicaciones adicionales."
+        }
+      },
+      "id": "auto1-agent-001",
+      "name": "IA - Analizar Email",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "auto1-openai-001",
+      "name": "OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [780, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parsear la respuesta JSON de la IA\nconst items = $input.all();\nconst results = [];\n\nfor (const item of items) {\n  const data = item.json;\n  let iaResponse = {};\n  \n  try {\n    // Intentar parsear el JSON de la respuesta de la IA\n    const outputText = data.output || '{}';\n    // Limpiar el texto por si viene con markdown\n    const cleanJson = outputText.replace(/```json\\n?|```\\n?/g, '').trim();\n    iaResponse = JSON.parse(cleanJson);\n  } catch (e) {\n    // Si falla el parseo, usar valores por defecto\n    iaResponse = {\n      resumen: 'Error al procesar - revisar manualmente',\n      categoria: 'Otros',\n      prioridad: 'Media'\n    };\n  }\n  \n  results.push({\n    json: {\n      ...data,\n      resumen_ia: iaResponse.resumen || 'Sin resumen',\n      categoria: iaResponse.categoria || 'Otros',\n      prioridad: iaResponse.prioridad || 'Media',\n      estado: 'Pendiente',\n      fecha_procesado: new Date().toISOString()\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "auto1-code-001",
+      "name": "Procesar Respuesta IA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "=TU_ID_DE_GOOGLE_SHEET"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Hoja 1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Fecha_Recepcion": "={{ $json.fecha_recepcion }}",
+            "Remitente": "={{ $json.remitente }}",
+            "Nombre_Remitente": "={{ $json.nombre_remitente }}",
+            "Asunto": "={{ $json.asunto }}",
+            "Resumen_IA": "={{ $json.resumen_ia }}",
+            "Categoria": "={{ $json.categoria }}",
+            "Prioridad": "={{ $json.prioridad }}",
+            "Estado": "={{ $json.estado }}",
+            "Tiene_Adjunto": "={{ $json.tiene_adjunto }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "auto1-sheets-001",
+      "name": "Google Sheets - Insertar",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1220, 300]
+    }
+  ],
+  "connections": {
+    "Gmail - Nuevo Email": {
+      "main": [
+        [
+          {
+            "node": "Extraer Datos Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Datos Email": {
+      "main": [
+        [
+          {
+            "node": "IA - Analizar Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA - Analizar Email": {
+      "main": [
+        [
+          {
+            "node": "Procesar Respuesta IA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar Respuesta IA": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Insertar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "IA - Analizar Email",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}
