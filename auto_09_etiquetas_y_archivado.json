@@ -1,0 +1,322 @@
+{
+    "name": "Auto 09 - Clasificar, Etiquetar y Archivar Emails",
+    "nodes": [
+        {
+            "parameters": {
+                "content": "## 🗂️ AUTOMATIZACIÓN 9: Gestión Completa del Buzón\n\n### 🎯 OBJETIVO:\nClasificar emails, aplicar etiquetas, archivar informativos y registrar todo en Sheets.\n\n### 📋 FLUJO:\n1. Gmail Trigger → nuevo email\n2. IA clasifica: categoría + es informativo?\n3. Aplicar etiqueta\n4. Si informativo → archivar\n5. Registrar en Sheets",
+                "height": 280,
+                "width": 400
+            },
+            "id": "auto9-note-001",
+            "name": "Instrucciones",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                40,
+                20
+            ]
+        },
+        {
+            "parameters": {
+                "pollTimes": {
+                    "item": [
+                        {
+                            "mode": "everyMinute"
+                        }
+                    ]
+                },
+                "filters": {
+                    "readStatus": "unread"
+                }
+            },
+            "id": "auto9-gmail-trigger-001",
+            "name": "Gmail - Nuevo Email",
+            "type": "n8n-nodes-base.gmailTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                340,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "mode": "manual",
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "f1",
+                            "name": "email_id",
+                            "value": "={{ $json.id }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "f2",
+                            "name": "fecha",
+                            "value": "={{ $json.date }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "f3",
+                            "name": "remitente",
+                            "value": "={{ $json.from.value[0].address }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "f4",
+                            "name": "asunto",
+                            "value": "={{ $json.subject }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "f5",
+                            "name": "cuerpo",
+                            "value": "={{ ($json.text || $json.snippet || '').substring(0, 1500) }}",
+                            "type": "string"
+                        }
+                    ]
+                }
+            },
+            "id": "auto9-set-001",
+            "name": "Extraer Datos",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                560,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "=Clasifica este email:\nDE: {{ $json.remitente }}\nASUNTO: {{ $json.asunto }}\nCONTENIDO: {{ $json.cuerpo }}\n\nResponde JSON: {\"categoria\":\"...\",\"es_informativo\":true/false,\"archivar\":true/false,\"resumen\":\"...\"}",
+                "options": {
+                    "systemMessage": "Clasificador de emails de instituto. Categorías: Familias, Profesorado, Consejeria, Administracion, Proveedores, Newsletter. es_informativo=true si no requiere respuesta."
+                }
+            },
+            "id": "auto9-agent-001",
+            "name": "IA - Clasificar",
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 1.7,
+            "position": [
+                780,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "model": "gpt-4o-mini",
+                "options": {
+                    "temperature": 0.2
+                }
+            },
+            "id": "auto9-openai-001",
+            "name": "OpenAI",
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+            "typeVersion": 1,
+            "position": [
+                780,
+                540
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const emailData = $('Extraer Datos').first().json;\nlet c = {};\ntry { c = JSON.parse($input.first().json.output.replace(/```json\\n?|```\\n?/g,'').trim()); } catch(e) { c = {categoria:'Otros',es_informativo:false,archivar:false,resumen:'Error'}; }\nreturn [{json:{...emailData,...c}}];"
+            },
+            "id": "auto9-code-001",
+            "name": "Procesar",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1000,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "conditions": [
+                        {
+                            "leftValue": "={{ $json.archivar }}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "equals"
+                            }
+                        }
+                    ]
+                }
+            },
+            "id": "auto9-if-001",
+            "name": "¿Archivar?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.1,
+            "position": [
+                1220,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "markAsRead",
+                "messageId": "={{ $json.email_id }}"
+            },
+            "id": "auto9-gmail-read-001",
+            "name": "Marcar Leído",
+            "type": "n8n-nodes-base.gmail",
+            "typeVersion": 2.1,
+            "position": [
+                1440,
+                240
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "removeLabels",
+                "messageId": "={{ $json.email_id }}",
+                "labelIds": [
+                    "INBOX"
+                ]
+            },
+            "id": "auto9-gmail-archive-001",
+            "name": "Archivar",
+            "type": "n8n-nodes-base.gmail",
+            "typeVersion": 2.1,
+            "position": [
+                1660,
+                240
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "append",
+                "documentId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "=TU_ID_SHEET"
+                },
+                "sheetName": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "Registro"
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "Fecha": "={{ $json.fecha }}",
+                        "Remitente": "={{ $json.remitente }}",
+                        "Asunto": "={{ $json.asunto }}",
+                        "Categoria": "={{ $json.categoria }}",
+                        "Resumen": "={{ $json.resumen }}",
+                        "Archivado": "={{ $json.archivar ? 'Sí' : 'No' }}"
+                    }
+                }
+            },
+            "id": "auto9-sheets-001",
+            "name": "Registrar",
+            "type": "n8n-nodes-base.googleSheets",
+            "typeVersion": 4.4,
+            "position": [
+                1440,
+                440
+            ]
+        }
+    ],
+    "connections": {
+        "Gmail - Nuevo Email": {
+            "main": [
+                [
+                    {
+                        "node": "Extraer Datos",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extraer Datos": {
+            "main": [
+                [
+                    {
+                        "node": "IA - Clasificar",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IA - Clasificar": {
+            "main": [
+                [
+                    {
+                        "node": "Procesar",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Procesar": {
+            "main": [
+                [
+                    {
+                        "node": "¿Archivar?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "¿Archivar?": {
+            "main": [
+                [
+                    {
+                        "node": "Marcar Leído",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Registrar",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Marcar Leído": {
+            "main": [
+                [
+                    {
+                        "node": "Archivar",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Archivar": {
+            "main": [
+                [
+                    {
+                        "node": "Registrar",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OpenAI": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "IA - Clasificar",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {}
+}

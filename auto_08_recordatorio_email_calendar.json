@@ -1,0 +1,274 @@
+{
+    "name": "Auto 08 - Recordatorio de Seguimiento → Google Calendar",
+    "nodes": [
+        {
+            "parameters": {
+                "content": "## ⏰ AUTOMATIZACIÓN 8: Recordatorios de Seguimiento\n\n### 🎯 OBJETIVO:\nCuando un email requiere una acción con plazo, la IA detecta la fecha límite y crea un recordatorio en Google Calendar.\n\n### 📋 FLUJO:\n1. Gmail Trigger detecta nuevo email\n2. Se extraen los datos del email\n3. La IA analiza si hay plazo o fecha límite\n4. Si hay seguimiento necesario → crear recordatorio\n5. El recordatorio incluye enlace al email original\n\n### ⚙️ CONFIGURACIÓN NECESARIA:\n1. **Gmail**: Conectar cuenta de Google\n2. **Google Calendar**: Mismo cuenta, calendario principal\n3. **OpenAI**: Credenciales configuradas\n\n### 📊 DATOS QUE DETECTA LA IA:\n- **Requiere seguimiento**: Sí/No\n- **Fecha límite**: Cuándo hay que actuar\n- **Tipo de acción**: Responder, Enviar documento, Confirmar, etc.\n- **Prioridad**: Alta, Media, Baja\n\n### 💡 CASOS DE USO:\n- Plazos de documentación de Consejería\n- Fechas límite para justificantes\n- Recordatorios de reuniones a confirmar\n- Tareas con fecha de entrega\n- Solicitudes pendientes de respuesta\n\n### ⚠️ NOTA:\nEl recordatorio se crea como evento de 15 minutos a las 9:00 del día indicado. Ajustar según preferencias.",
+                "height": 660,
+                "width": 480
+            },
+            "id": "auto8-note-001",
+            "name": "Instrucciones",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                40,
+                20
+            ]
+        },
+        {
+            "parameters": {
+                "pollTimes": {
+                    "item": [
+                        {
+                            "mode": "everyMinute"
+                        }
+                    ]
+                },
+                "filters": {
+                    "readStatus": "unread"
+                }
+            },
+            "id": "auto8-gmail-trigger-001",
+            "name": "Gmail - Nuevo Email",
+            "type": "n8n-nodes-base.gmailTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                340,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "mode": "manual",
+                "duplicateItem": false,
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "field-id",
+                            "name": "email_id",
+                            "value": "={{ $json.id }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "field-thread",
+                            "name": "thread_id",
+                            "value": "={{ $json.threadId }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "field-fecha",
+                            "name": "fecha_email",
+                            "value": "={{ $json.date }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "field-remitente",
+                            "name": "remitente",
+                            "value": "={{ $json.from.value[0].address }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "field-nombre",
+                            "name": "nombre_remitente",
+                            "value": "={{ $json.from.value[0].name || $json.from.value[0].address }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "field-asunto",
+                            "name": "asunto",
+                            "value": "={{ $json.subject }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "field-cuerpo",
+                            "name": "cuerpo",
+                            "value": "={{ ($json.text || $json.snippet || '').substring(0, 2000) }}",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "auto8-set-extraer-001",
+            "name": "Extraer Datos Email",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                560,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "=Analiza este email y determina si requiere una acción con plazo o fecha límite.\n\nFECHA ACTUAL: {{ new Date().toISOString().split('T')[0] }}\n\n---\nEMAIL:\nDe: {{ $json.nombre_remitente }} ({{ $json.remitente }})\nAsunto: {{ $json.asunto }}\nContenido: {{ $json.cuerpo }}\n---\n\nDetermina:\n1. requiere_seguimiento: ¿Hay algo que hacer con fecha límite? (true/false)\n2. fecha_limite: La fecha para actuar (formato YYYY-MM-DD). Si dice 'en 3 días', calcula la fecha real.\n3. accion: Qué hay que hacer (Responder, Enviar documento, Confirmar asistencia, Revisar, Llamar, Otro)\n4. resumen: Breve descripción de qué hay que hacer (máx 50 palabras)\n5. prioridad: Alta, Media, Baja\n\nSi no hay acción con plazo, responde requiere_seguimiento: false.\n\nResponde SOLO en JSON:\n{\n  \"requiere_seguimiento\": true/false,\n  \"fecha_limite\": \"YYYY-MM-DD\",\n  \"accion\": \"...\",\n  \"resumen\": \"...\",\n  \"prioridad\": \"...\"\n}",
+                "options": {
+                    "systemMessage": "Eres un asistente de gestión de tareas de un instituto. Detectas plazos y acciones requeridas en emails. Sé preciso con las fechas. Si no hay plazo claro pero parece urgente, sugiere fecha límite de 3 días laborables. Responde SOLO con JSON válido."
+                }
+            },
+            "id": "auto8-agent-001",
+            "name": "IA - Detectar Seguimiento",
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 1.7,
+            "position": [
+                780,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "model": "gpt-4o-mini",
+                "options": {
+                    "temperature": 0.2
+                }
+            },
+            "id": "auto8-openai-001",
+            "name": "OpenAI",
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+            "typeVersion": 1,
+            "position": [
+                780,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Parsear respuesta de IA\nconst items = $input.all();\nconst emailData = $('Extraer Datos Email').first().json;\n\nconst results = [];\n\nfor (const item of items) {\n  let seguimiento = {};\n  \n  try {\n    const output = item.json.output || '{}';\n    const clean = output.replace(/```json\\n?|```\\n?/g, '').trim();\n    seguimiento = JSON.parse(clean);\n  } catch (e) {\n    seguimiento = { requiere_seguimiento: false };\n  }\n  \n  // Icono según prioridad\n  let icono = '📋';\n  if (seguimiento.prioridad === 'Alta') icono = '🔴';\n  else if (seguimiento.prioridad === 'Media') icono = '🟠';\n  else icono = '🟢';\n  \n  results.push({\n    json: {\n      ...emailData,\n      requiere_seguimiento: seguimiento.requiere_seguimiento || false,\n      fecha_limite: seguimiento.fecha_limite || '',\n      accion: seguimiento.accion || '',\n      resumen_tarea: seguimiento.resumen || '',\n      prioridad: seguimiento.prioridad || 'Media',\n      icono_prioridad: icono,\n      titulo_recordatorio: `${icono} PENDIENTE: ${seguimiento.accion || 'Revisar'} - ${emailData.asunto.substring(0, 40)}`\n    }\n  });\n}\n\nreturn results;"
+            },
+            "id": "auto8-code-001",
+            "name": "Procesar Respuesta",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1000,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "leftValue": "={{ $json.requiere_seguimiento }}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "equals"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "id": "auto8-if-seguimiento-001",
+            "name": "¿Requiere Seguimiento?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.1,
+            "position": [
+                1220,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "create",
+                "calendar": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "primary"
+                },
+                "summary": "={{ $json.titulo_recordatorio }}",
+                "start": "={{ $json.fecha_limite }}T09:00:00",
+                "end": "={{ $json.fecha_limite }}T09:15:00",
+                "additionalFields": {
+                    "description": "=📧 **Email de:** {{ $json.nombre_remitente }} ({{ $json.remitente }})\n📋 **Asunto:** {{ $json.asunto }}\n📅 **Recibido:** {{ $json.fecha_email }}\n\n---\n\n**📝 Tarea:**\n{{ $json.resumen_tarea }}\n\n**⚡ Acción requerida:** {{ $json.accion }}\n**🎯 Prioridad:** {{ $json.prioridad }}\n\n---\n\n🔗 Buscar email en Gmail con ID: {{ $json.email_id }}\n\n---\n_Recordatorio creado automáticamente_",
+                    "colorId": "={{ $json.prioridad === 'Alta' ? '11' : ($json.prioridad === 'Media' ? '6' : '2') }}"
+                }
+            },
+            "id": "auto8-calendar-001",
+            "name": "Calendar - Crear Recordatorio",
+            "type": "n8n-nodes-base.googleCalendar",
+            "typeVersion": 1.2,
+            "position": [
+                1460,
+                200
+            ]
+        }
+    ],
+    "connections": {
+        "Gmail - Nuevo Email": {
+            "main": [
+                [
+                    {
+                        "node": "Extraer Datos Email",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extraer Datos Email": {
+            "main": [
+                [
+                    {
+                        "node": "IA - Detectar Seguimiento",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IA - Detectar Seguimiento": {
+            "main": [
+                [
+                    {
+                        "node": "Procesar Respuesta",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Procesar Respuesta": {
+            "main": [
+                [
+                    {
+                        "node": "¿Requiere Seguimiento?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "¿Requiere Seguimiento?": {
+            "main": [
+                [
+                    {
+                        "node": "Calendar - Crear Recordatorio",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OpenAI": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "IA - Detectar Seguimiento",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {}
+}

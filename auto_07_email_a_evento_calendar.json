@@ -1,0 +1,298 @@
+{
+    "name": "Auto 07 - Email con Reunión → Evento en Google Calendar",
+    "nodes": [
+        {
+            "parameters": {
+                "content": "## 📅 AUTOMATIZACIÓN 7: Crear Eventos desde Emails\n\n### 🎯 OBJETIVO:\nCuando llega un email que contiene información sobre una reunión o evento, la IA extrae los datos y crea automáticamente un evento en Google Calendar.\n\n### 📋 FLUJO:\n1. Gmail Trigger detecta nuevo email\n2. Se extraen los datos del email\n3. La IA analiza si contiene información de evento/reunión\n4. Si hay evento → extraer fecha, hora, lugar, descripción\n5. Crear evento en Google Calendar\n6. (Opcional) Registrar en Sheets\n\n### ⚙️ CONFIGURACIÓN NECESARIA:\n1. **Gmail**: Conectar cuenta de Google\n2. **Google Calendar**: Conectar mismo cuenta\n3. **OpenAI**: Credenciales configuradas\n\n### 📊 DATOS QUE EXTRAE LA IA:\n- **Título**: Nombre del evento/reunión\n- **Fecha**: Día del evento (formato YYYY-MM-DD)\n- **Hora inicio**: Hora de inicio (formato HH:MM)\n- **Hora fin**: Hora estimada de fin\n- **Lugar**: Ubicación física o enlace virtual\n- **Descripción**: Resumen del propósito\n\n### 💡 CASOS DE USO:\n- Convocatorias de Consejería\n- Reuniones de departamento\n- Claustros y evaluaciones\n- Reuniones con familias\n- Formación del profesorado\n\n### ⚠️ NOTA:\nLa IA puede no detectar correctamente algunas fechas. Revisar el calendario periódicamente.",
+                "height": 700,
+                "width": 500
+            },
+            "id": "auto7-note-001",
+            "name": "Instrucciones",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                40,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "pollTimes": {
+                    "item": [
+                        {
+                            "mode": "everyMinute"
+                        }
+                    ]
+                },
+                "filters": {
+                    "readStatus": "unread"
+                }
+            },
+            "id": "auto7-gmail-trigger-001",
+            "name": "Gmail - Nuevo Email",
+            "type": "n8n-nodes-base.gmailTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                340,
+                320
+            ]
+        },
+        {
+            "parameters": {
+                "mode": "manual",
+                "duplicateItem": false,
+                "assignments": {
+                    "assignments": [
+                        {
+                            "id": "field-id",
+                            "name": "email_id",
+                            "value": "={{ $json.id }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "field-fecha-email",
+                            "name": "fecha_email",
+                            "value": "={{ $json.date }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "field-remitente",
+                            "name": "remitente",
+                            "value": "={{ $json.from.value[0].address }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "field-nombre",
+                            "name": "nombre_remitente",
+                            "value": "={{ $json.from.value[0].name || $json.from.value[0].address }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "field-asunto",
+                            "name": "asunto",
+                            "value": "={{ $json.subject }}",
+                            "type": "string"
+                        },
+                        {
+                            "id": "field-cuerpo",
+                            "name": "cuerpo",
+                            "value": "={{ ($json.text || $json.snippet || '').substring(0, 2500) }}",
+                            "type": "string"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "auto7-set-extraer-001",
+            "name": "Extraer Datos Email",
+            "type": "n8n-nodes-base.set",
+            "typeVersion": 3.4,
+            "position": [
+                560,
+                320
+            ]
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "=Analiza este email y determina si contiene información sobre una reunión, evento o convocatoria.\n\nFECHA ACTUAL: {{ new Date().toISOString().split('T')[0] }}\n\n---\nEMAIL:\nDe: {{ $json.nombre_remitente }}\nAsunto: {{ $json.asunto }}\nContenido: {{ $json.cuerpo }}\n---\n\nSi el email contiene información de un evento/reunión, extrae:\n1. titulo: Nombre descriptivo del evento\n2. fecha: En formato YYYY-MM-DD (si dice 'próximo lunes', calcula la fecha real)\n3. hora_inicio: En formato HH:MM (24h)\n4. hora_fin: En formato HH:MM (si no se indica, suma 1 hora al inicio)\n5. lugar: Ubicación física o 'Virtual' o 'Por determinar'\n6. descripcion: Breve descripción del propósito (máx 100 palabras)\n7. es_evento: true si hay evento, false si no\n\nResponde SOLO en JSON:\n{\n  \"es_evento\": true/false,\n  \"titulo\": \"...\",\n  \"fecha\": \"YYYY-MM-DD\",\n  \"hora_inicio\": \"HH:MM\",\n  \"hora_fin\": \"HH:MM\",\n  \"lugar\": \"...\",\n  \"descripcion\": \"...\"\n}",
+                "options": {
+                    "systemMessage": "Eres un asistente de secretaría de un instituto. Tu tarea es identificar convocatorias de reuniones, eventos y citas en los emails. Sé preciso con las fechas y horas. Si no hay evento claro, responde con es_evento: false. Responde SOLO con JSON válido."
+                }
+            },
+            "id": "auto7-agent-001",
+            "name": "IA - Detectar Evento",
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 1.7,
+            "position": [
+                780,
+                320
+            ]
+        },
+        {
+            "parameters": {
+                "model": "gpt-4o-mini",
+                "options": {
+                    "temperature": 0.2
+                }
+            },
+            "id": "auto7-openai-001",
+            "name": "OpenAI",
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+            "typeVersion": 1,
+            "position": [
+                780,
+                520
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "// Parsear respuesta de IA\nconst items = $input.all();\nconst emailData = $('Extraer Datos Email').first().json;\n\nconst results = [];\n\nfor (const item of items) {\n  let evento = {};\n  \n  try {\n    const output = item.json.output || '{}';\n    const clean = output.replace(/```json\\n?|```\\n?/g, '').trim();\n    evento = JSON.parse(clean);\n  } catch (e) {\n    evento = { es_evento: false };\n  }\n  \n  results.push({\n    json: {\n      ...emailData,\n      es_evento: evento.es_evento || false,\n      titulo_evento: evento.titulo || '',\n      fecha_evento: evento.fecha || '',\n      hora_inicio: evento.hora_inicio || '09:00',\n      hora_fin: evento.hora_fin || '10:00',\n      lugar: evento.lugar || 'Por determinar',\n      descripcion_evento: evento.descripcion || ''\n    }\n  });\n}\n\nreturn results;"
+            },
+            "id": "auto7-code-001",
+            "name": "Procesar Respuesta",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1000,
+                320
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "leftValue": "={{ $json.es_evento }}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "equals"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "id": "auto7-if-evento-001",
+            "name": "¿Es Evento?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.1,
+            "position": [
+                1220,
+                320
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "create",
+                "calendar": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "primary"
+                },
+                "summary": "={{ $json.titulo_evento }}",
+                "start": "={{ $json.fecha_evento }}T{{ $json.hora_inicio }}:00",
+                "end": "={{ $json.fecha_evento }}T{{ $json.hora_fin }}:00",
+                "additionalFields": {
+                    "location": "={{ $json.lugar }}",
+                    "description": "=📧 Origen: Email de {{ $json.nombre_remitente }}\n📋 Asunto original: {{ $json.asunto }}\n\n{{ $json.descripcion_evento }}\n\n---\nEvento creado automáticamente por el sistema de gestión de emails."
+                }
+            },
+            "id": "auto7-calendar-001",
+            "name": "Calendar - Crear Evento",
+            "type": "n8n-nodes-base.googleCalendar",
+            "typeVersion": 1.2,
+            "position": [
+                1460,
+                220
+            ]
+        },
+        {
+            "parameters": {
+                "content": "### ✅ Evento Creado\nEl evento se ha añadido al calendario principal.",
+                "height": 80,
+                "width": 220
+            },
+            "id": "auto7-note-ok-001",
+            "name": "Nota OK",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                1460,
+                340
+            ]
+        },
+        {
+            "parameters": {
+                "content": "### ❌ Sin Evento\nEl email no contenía información de reunión/evento.",
+                "height": 80,
+                "width": 220
+            },
+            "id": "auto7-note-no-001",
+            "name": "Nota No Evento",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                1460,
+                440
+            ]
+        }
+    ],
+    "connections": {
+        "Gmail - Nuevo Email": {
+            "main": [
+                [
+                    {
+                        "node": "Extraer Datos Email",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Extraer Datos Email": {
+            "main": [
+                [
+                    {
+                        "node": "IA - Detectar Evento",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IA - Detectar Evento": {
+            "main": [
+                [
+                    {
+                        "node": "Procesar Respuesta",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Procesar Respuesta": {
+            "main": [
+                [
+                    {
+                        "node": "¿Es Evento?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "¿Es Evento?": {
+            "main": [
+                [
+                    {
+                        "node": "Calendar - Crear Evento",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OpenAI": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "IA - Detectar Evento",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {}
+}

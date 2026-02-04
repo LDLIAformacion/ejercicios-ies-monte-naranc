@@ -1,0 +1,186 @@
+{
+    "name": "Auto 10 - Resumen Semanal de Emails → Evento Calendar",
+    "nodes": [
+        {
+            "parameters": {
+                "content": "## 📊 AUTOMATIZACIÓN 10: Agenda Semanal de Emails\n\n### 🎯 OBJETIVO:\nCada lunes a las 8:00, generar un resumen de los emails de la semana anterior y crear un evento en Calendar con el informe.\n\n### 📋 FLUJO:\n1. Schedule Trigger: lunes 8:00\n2. Gmail: buscar emails de últimos 7 días\n3. IA: generar resumen ejecutivo\n4. Calendar: crear evento con el resumen\n\n### ⚙️ CONFIGURACIÓN:\n- Gmail, Calendar y OpenAI conectados",
+                "height": 280,
+                "width": 400
+            },
+            "id": "auto10-note-001",
+            "name": "Instrucciones",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                40,
+                20
+            ]
+        },
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "triggerAtHour": 8,
+                            "triggerAtDay": 1
+                        }
+                    ]
+                }
+            },
+            "id": "auto10-schedule-001",
+            "name": "Cada Lunes 8:00",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                340,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "getAll",
+                "returnAll": false,
+                "limit": 100,
+                "filters": {
+                    "receivedAfter": "={{ new Date(Date.now() - 7*24*60*60*1000).toISOString() }}"
+                }
+            },
+            "id": "auto10-gmail-001",
+            "name": "Gmail - Últimos 7 días",
+            "type": "n8n-nodes-base.gmail",
+            "typeVersion": 2.1,
+            "position": [
+                560,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const emails = $input.all();\nconst resumen = emails.map(e => `- ${e.json.from?.value?.[0]?.address || 'Desconocido'}: ${e.json.subject || 'Sin asunto'}`).join('\\n');\nreturn [{json: {total: emails.length, lista: resumen}}];"
+            },
+            "id": "auto10-code-001",
+            "name": "Preparar Datos",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                780,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "=Genera un resumen ejecutivo de la actividad de correo de la semana:\n\nTotal emails: {{ $json.total }}\nLista:\n{{ $json.lista }}\n\nGenera:\n1. Estadísticas: total, principales remitentes\n2. Temas destacados (3-5 puntos)\n3. Acciones pendientes detectadas\n\nFormato breve, máximo 200 palabras.",
+                "options": {
+                    "systemMessage": "Eres un asistente de dirección que resume la actividad semanal de correo de un instituto."
+                }
+            },
+            "id": "auto10-agent-001",
+            "name": "IA - Resumen Semanal",
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 1.7,
+            "position": [
+                1000,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "model": "gpt-4o-mini",
+                "options": {
+                    "temperature": 0.4
+                }
+            },
+            "id": "auto10-openai-001",
+            "name": "OpenAI",
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+            "typeVersion": 1,
+            "position": [
+                1000,
+                500
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "create",
+                "calendar": {
+                    "__rl": true,
+                    "mode": "list",
+                    "value": "primary"
+                },
+                "summary": "=📊 Resumen Semanal de Emails",
+                "start": "={{ new Date().toISOString().split('T')[0] }}T08:30:00",
+                "end": "={{ new Date().toISOString().split('T')[0] }}T09:00:00",
+                "additionalFields": {
+                    "description": "={{ $json.output }}\n\n---\nGenerado automáticamente"
+                }
+            },
+            "id": "auto10-calendar-001",
+            "name": "Calendar - Crear Resumen",
+            "type": "n8n-nodes-base.googleCalendar",
+            "typeVersion": 1.2,
+            "position": [
+                1220,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Cada Lunes 8:00": {
+            "main": [
+                [
+                    {
+                        "node": "Gmail - Últimos 7 días",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gmail - Últimos 7 días": {
+            "main": [
+                [
+                    {
+                        "node": "Preparar Datos",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Preparar Datos": {
+            "main": [
+                [
+                    {
+                        "node": "IA - Resumen Semanal",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "IA - Resumen Semanal": {
+            "main": [
+                [
+                    {
+                        "node": "Calendar - Crear Resumen",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "OpenAI": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "IA - Resumen Semanal",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {}
+}

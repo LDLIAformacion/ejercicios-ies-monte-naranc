@@ -1,0 +1,189 @@
+{
+  "name": "Auto 06 - Etiquetar Emails Automáticamente con IA",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🏷️ AUTOMATIZACIÓN 6: Etiquetado Automático de Emails con IA\n\n### 🎯 OBJETIVO:\nCada vez que llega un email nuevo, la IA lo analiza y aplica automáticamente la etiqueta correspondiente en Gmail.\n\n### 📋 FLUJO:\n1. Gmail Trigger detecta nuevo email no leído\n2. Se extraen asunto y contenido del email\n3. La IA clasifica el email en una categoría\n4. Gmail aplica la etiqueta correspondiente\n5. (Opcional) Marcar como leído si es informativo\n\n### ⚙️ CONFIGURACIÓN NECESARIA:\n1. **Gmail**: Conectar cuenta de Google\n2. **Etiquetas en Gmail**: Crear previamente:\n   - 🏠 Familias\n   - 👨‍🏫 Profesorado\n   - 🎓 Alumnado\n   - 🏛️ Consejería\n   - 📋 Administración\n   - ⚠️ Urgente\n   - 📦 Proveedores\n3. **OpenAI**: Credenciales configuradas\n\n### 🏷️ CATEGORÍAS DE ETIQUETAS:\n- **Familias**: Comunicaciones de padres/tutores\n- **Profesorado**: Emails de docentes\n- **Alumnado**: Consultas de estudiantes\n- **Consejería**: Comunicados oficiales\n- **Administración**: Trámites internos\n- **Urgente**: Requiere atención inmediata\n- **Proveedores**: Empresas y servicios\n\n### 💡 CASOS DE USO:\n- Organización automática del buzón\n- Priorización visual de emails\n- Filtrado rápido por categoría",
+        "height": 700,
+        "width": 480
+      },
+      "id": "auto6-note-001",
+      "name": "Instrucciones",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [40, 20]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "readStatus": "unread"
+        }
+      },
+      "id": "auto6-gmail-trigger-001",
+      "name": "Gmail - Nuevo Email",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [340, 300]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "duplicateItem": false,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "field-id",
+              "name": "email_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "field-remitente",
+              "name": "remitente",
+              "value": "={{ $json.from.value[0].address }}",
+              "type": "string"
+            },
+            {
+              "id": "field-nombre",
+              "name": "nombre_remitente",
+              "value": "={{ $json.from.value[0].name || $json.from.value[0].address }}",
+              "type": "string"
+            },
+            {
+              "id": "field-asunto",
+              "name": "asunto",
+              "value": "={{ $json.subject }}",
+              "type": "string"
+            },
+            {
+              "id": "field-cuerpo",
+              "name": "cuerpo",
+              "value": "={{ ($json.text || $json.snippet || '').substring(0, 1500) }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "auto6-set-extraer-001",
+      "name": "Extraer Datos Email",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [560, 300]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analiza este email de un instituto de educación secundaria y clasifícalo:\n\n---\nDE: {{ $json.nombre_remitente }} ({{ $json.remitente }})\nASUNTO: {{ $json.asunto }}\nCONTENIDO: {{ $json.cuerpo }}\n---\n\nClasifica en UNA de estas categorías:\n- Familias: emails de padres, madres o tutores legales\n- Profesorado: emails de docentes del centro o de otros centros\n- Alumnado: emails de estudiantes\n- Consejeria: comunicados de la Consejería de Educación o administración educativa\n- Administracion: trámites internos, gestiones administrativas\n- Urgente: si el asunto o contenido indica urgencia o plazos muy cortos\n- Proveedores: empresas, servicios, ofertas comerciales\n\nSi es urgente además de otra categoría, responde \"Urgente\".\n\nResponde SOLO con el nombre de la categoría en una palabra (sin tildes): Familias, Profesorado, Alumnado, Consejeria, Administracion, Urgente, Proveedores",
+        "options": {
+          "systemMessage": "Eres un clasificador de emails para un instituto de educación secundaria. Tu única tarea es clasificar emails en categorías predefinidas. Responde SOLO con una palabra que sea el nombre de la categoría. Sin explicaciones."
+        }
+      },
+      "id": "auto6-agent-001",
+      "name": "IA - Clasificar Email",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "id": "auto6-openai-001",
+      "name": "OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [780, 500]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mapear la clasificación de IA a etiquetas de Gmail\nconst items = $input.all();\nconst emailData = $('Extraer Datos Email').first().json;\n\nconst results = [];\n\n// Mapeo de categorías a IDs de etiquetas de Gmail\n// NOTA: Estos IDs deben reemplazarse por los reales de tu cuenta de Gmail\nconst etiquetasMap = {\n  'familias': 'Label_Familias',\n  'profesorado': 'Label_Profesorado',\n  'alumnado': 'Label_Alumnado',\n  'consejeria': 'Label_Consejeria',\n  'administracion': 'Label_Administracion',\n  'urgente': 'Label_Urgente',\n  'proveedores': 'Label_Proveedores'\n};\n\nfor (const item of items) {\n  const clasificacion = (item.json.output || 'administracion').toLowerCase().trim();\n  const etiquetaId = etiquetasMap[clasificacion] || 'Label_Administracion';\n  \n  results.push({\n    json: {\n      email_id: emailData.email_id,\n      clasificacion: clasificacion,\n      etiqueta_id: etiquetaId,\n      asunto: emailData.asunto,\n      remitente: emailData.remitente\n    }\n  });\n}\n\nreturn results;"
+      },
+      "id": "auto6-code-001",
+      "name": "Mapear Etiqueta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $json.email_id }}",
+        "labelIds": ["={{ $json.etiqueta_id }}"]
+      },
+      "id": "auto6-gmail-label-001",
+      "name": "Gmail - Aplicar Etiqueta",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1220, 300]
+    }
+  ],
+  "connections": {
+    "Gmail - Nuevo Email": {
+      "main": [
+        [
+          {
+            "node": "Extraer Datos Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer Datos Email": {
+      "main": [
+        [
+          {
+            "node": "IA - Clasificar Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IA - Clasificar Email": {
+      "main": [
+        [
+          {
+            "node": "Mapear Etiqueta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mapear Etiqueta": {
+      "main": [
+        [
+          {
+            "node": "Gmail - Aplicar Etiqueta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "IA - Clasificar Email",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}
