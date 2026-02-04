@@ -1,51 +1,50 @@
 # 🚀 Automatizaciones n8n para Centro Educativo
-## Resumen de Ejercicios de Automatización
+## Resumen y Casos de Uso de los Ejercicios
 
-Este repositorio contiene una colección de **10 automatizaciones** diseñadas para agilizar la gestión administrativa y académica de un centro educativo utilizando n8n, Gmail, Google Calendar y Google Sheets.
-
----
-
-## 📦 Listado de Ejercicios
-
-| # | Archivo | Descripción resumida |
-|---|---------|-------------|
-| 1 | `auto_01_resumen_emails_sheets.json` | Resumen automático de emails con IA → Google Sheets |
-| 2 | `auto_02_respuesta_automatica_borrador.json` | IA redacta una respuesta profesional (Borrador) |
-| 3 | `auto_03_adjuntos_drive_resumen.json` | Guarda adjuntos en Drive y los registra en Sheets |
-| 4 | `auto_04_drive_resumen_automatico.json` | Resumen automático de documentos nuevos en Drive |
-| 5 | `auto_05_base_datos_emails_completa.json` | Clasificación avanzada y base de datos de correos |
-| 6 | `auto_06_etiquetar_emails_ia.json` | Etiquetado automático de emails basado en contenido |
-| 7 | `auto_07_email_a_evento_calendar.json` | Detección de reuniones en emails → Evento en Calendar |
-| 8 | `auto_08_recordatorio_email_calendar.json` | Crea recordatorios de seguimiento para emails con plazos |
-| 9 | `auto_09_etiquetas_y_archivado.json` | Gestión integral: etiquetado, archivado y registro |
-| 10| `auto_10_agenda_semanal_emails.json` | Resumen semanal de actividad → Informe en Calendar |
+Este repositorio contiene **10 automatizaciones** diseñadas para la gestión de un centro educativo. A continuación se detallan los objetivos y ejemplos prácticos de uso para cada ejercicio.
 
 ---
 
-## 📋 Descripción de las Automatizaciones
+## 📦 Listado de Ejercicios y Casos de Uso
 
-### 1-5: Gestión Documental y Respuesta
-- **Resumen e IA**: Procesamiento de texto entrante para generar síntesis ejecutivas.
-- **Borradores Inteligentes**: Redacción asistida de respuestas para agilizar la secretaría.
-- **Control de Adjuntos**: Organización automática de archivos recibidos por email en carpetas de Drive.
-- **Análisis de Drive**: Vigilancia de carpetas para resumir automáticamente normativa o actas.
-
-### 6-10: Organización y Calendario
-- **Etiquetado Inteligente**: Clasificación visual en Gmail (Familias, Profesorado, Urgente).
-- **Integración con Calendar**: Extracción de fechas y horas para asegurar que ninguna reunión se pase por alto.
-- **Seguimiento de Plazos**: Recordatorios automáticos para emails que requieren una acción futura.
-- **Informes Semanales**: Visión global de la carga de trabajo y temas destacados de la semana.
-
----
-
-## 🔧 Configuración General
-
-Para utilizar estos flujos, se requiere:
-1. **n8n** instalado y funcionando.
-2. **Credenciales de Google** (OAuth2) con permisos para Gmail, Calendar y Sheets.
-3. **Credenciales de OpenAI** para las funciones de Inteligencia Artificial.
-4. Ajustar los **IDs de Google Sheets y Carpetas** en los nodos correspondientes.
+| # | Automatización | Casos de Uso (Ejemplos) |
+|---|----------------|-------------------------|
+| **1** | **Resumen de Emails → Sheets** | • Registro automático de consultas de familias.<br>• Seguimiento de avisos de mantenimiento del centro. |
+| **2** | **Respuesta Automática (Borrador)** | • Confirmar recepción de justificantes médicos.<br>• Respuesta estándar sobre plazos de matriculación. |
+| **3** | **Adjuntos → Drive + Registro** | • Archivar DNIs o títulos enviados por alumnos.<br>• Guardar fotos de actividades extraescolares recibidas. |
+| **4** | **Drive → Resumen IA** | • Resumen rápido de nuevas leyes publicadas en el boletín.<br>• Índice automático de actas de claustro extensas. |
+| **5** | **Base de Datos Clasificada** | • Panel de control para ver el "sentimiento" del buzón.<br>• Alertas inmediatas para emails marcados como críticos. |
+| **6** | **Etiquetado IA en Gmail** | • Separar "Publicidad" de "Comunicaciones Oficiales".<br>• Organizar el correo automáticamente por departamentos. |
+| **7** | **Email → Google Calendar** | • Crear citas automáticas para tutorías con familias.<br>• Agendar cursos de formación recibidos por email. |
+| **8** | **Recordatorios de Plazos** | • Aviso de fecha límite para entrega de memorias.<br>• Recordatorio de último día para solicitar becas. |
+| **9** | **Gestión y Archivado** | • Limpieza de bandeja archivando facturas ya procesadas.<br>• Etiquetar y ocultar newsletters que no requieren acción. |
+| **10** | **Resumen Semanal en Calendar** | • Informe para dirección sobre los temas más tratados.<br>• Repaso de lunes con lo más importante de la semana anterior. |
 
 ---
 
-*Creado para el curso de automatización n8n - Febrero 2026*
+## 📋 Descripción Técnica de los Bloques
+
+### Gestión Documental (1-5)
+Enfocados en el procesamiento de la información entrante:
+- **Centralización**: Todo queda registrado en Google Sheets sin intervención manual.
+- **IA de Análisis**: Uso de modelos de lenguaje para sintetizar y clasificar el contenido.
+- **Organización de Drive**: Estructura de archivos basada en la información del correo.
+
+### Organización y Agenda (6-10)
+Enfocados en la productividad del personal:
+- **Productividad Visual**: Uso inteligente de etiquetas para priorizar el trabajo.
+- **Sincronización Total**: El correo se convierte en agenda sin necesidad de copiar datos a mano.
+- **Automatización del Seguimiento**: Sistema proactivo de avisos para no perder fechas clave.
+
+---
+
+## 🔧 Requisitos para Alumnos
+
+Para que estos ejercicios funcionen en vuestro entorno n8n:
+1. **Credenciales de Google**: OAuth2 configurado con acceso a Gmail, Calendar y Sheets.
+2. **Credenciales de OpenAI**: API Key válida para el nodo de "IA Agent".
+3. **IDs Personalizados**: Debéis sustituir los campos `TU_ID_...` por vuestros IDs reales de hojas de cálculo y carpetas.
+
+---
+
+*Actualizado para el curso de automatización n8n - Febrero 2026*
